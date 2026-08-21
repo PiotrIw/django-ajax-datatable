@@ -3,6 +3,27 @@
 History
 =======
 
+v4.6.0
+------
+* Fixed date column filtering, broken by Django 5.0 removing the `USE_L10N` setting:
+  `format_datetime()` fell back to rendering dates in the neutral format while
+  `parse_date()` kept reading them with the input formats of the active locale, so
+  filtering a date column returned the wrong day (or nothing at all) in most languages
+* Both sides now follow the new `AJAX_DATATABLE_USE_L10N` setting, which defaults to
+  `True`, that is to the behaviour of a Django project before 5.0; set it to `False` to
+  render and read dates in the neutral format instead
+* `parse_date()` tries the very format used for rendering first, and falls back to
+  `DATE_INPUT_FORMATS`. The 14 locales (out of the 83 shipped by Django) whose
+  `SHORT_DATE_FORMAT` holds a translated month name - `tr`, `th`, `sl`, ... - can only
+  be filtered through their input formats, since strptime reads month names in the C
+  locale only
+* Beware: on Django <= 4.2 the new default is a visible change for projects which set
+  `USE_L10N = False`, since dates were rendered in the neutral format there; add
+  `AJAX_DATATABLE_USE_L10N = False` to keep them that way
+* Packaging: the wheel no longer ships a top level `tests` package, no longer claims to
+  support Python 2, declares `python_requires` and fixes the license classifier (MIT,
+  which is what LICENSE says and always said)
+
 v4.5.0
 ------
 * Skip `filter_queryset_by_date_range` (that is: ignore `date_from` and `date_to` from requests params)

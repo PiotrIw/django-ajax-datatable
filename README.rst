@@ -1060,6 +1060,7 @@ App settings
     AJAX_DATATABLE_TEST_FILTERS = False                   # trace results for each individual filter, for debugging purposes
     AJAX_DATATABLE_DISABLE_QUERYSET_OPTIMIZATION = False  # all queryset optimizations are disabled
     AJAX_DATATABLE_STRIP_HTML_TAGS = True                 # string HTML tags when rendering the table
+    AJAX_DATATABLE_USE_L10N = True                        # render and read back dates in the format of the active locale
 
 More details
 ============

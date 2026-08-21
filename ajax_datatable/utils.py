@@ -1,8 +1,8 @@
 import pprint
 import datetime
 from django.utils import timezone
-from django.conf import settings
 from django.utils import formats
+from .app_settings import USE_L10N
 
 # Support for pytz is deprecated in Django 4.0 will be removed in Django 5.0
 # import pytz
@@ -94,6 +94,41 @@ def prettyprint_queryset(qs, colorize=True, prettify=True):
     prettyprint_query(str(qs.query), colorize=colorize, prettify=prettify)
 
 
+# Django date format specifiers which have a strptime equivalent; anything
+# else (a translated month name, for instance) cannot be read back.
+DATE_FORMAT_SPECIFIERS = 'aAbcdDeEfFgGhHiIjlLmMnNoOPrsStTUuwWyYzZ'
+STRPTIME_EQUIVALENTS = {
+    'd': '%d', 'j': '%d',
+    'm': '%m', 'n': '%m',
+    'Y': '%Y', 'y': '%y',
+}
+
+
+def date_format_to_strptime(date_format):
+    """
+    Convert a Django date format ("d/m/Y") into the equivalent strptime
+    pattern ("%d/%m/%Y"), so a date we rendered can be read back.
+
+    Returns None when the format holds something strptime cannot match: 14 of
+    the 83 locales shipped by Django render the month as a translated name,
+    and those fall back to DATE_INPUT_FORMATS.
+    """
+    if '\\' in date_format:
+        # escaped literals: don't attempt the conversion
+        return None
+    pattern = ''
+    for ch in date_format:
+        if ch in STRPTIME_EQUIVALENTS:
+            pattern += STRPTIME_EQUIVALENTS[ch]
+        elif ch in DATE_FORMAT_SPECIFIERS:
+            return None
+        elif ch == '%':
+            pattern += '%%'
+        else:
+            pattern += ch
+    return pattern
+
+
 def format_datetime(dt, include_time=True):
     """
     Here we adopt the following rule:
@@ -117,22 +152,30 @@ def format_datetime(dt, include_time=True):
         assert isinstance(dt, datetime.date)
         include_time = False
 
-    use_l10n = getattr(settings, 'USE_L10N', False)
-    text = formats.date_format(dt, use_l10n=use_l10n, format='SHORT_DATE_FORMAT')
+    text = formats.date_format(dt, use_l10n=USE_L10N, format='SHORT_DATE_FORMAT')
     if include_time:
         text += dt.strftime(' %H:%M:%S')
     return text
 
 
 def parse_date(formatted_date):
-    parsed_date = None
-    for date_format in formats.get_format('DATE_INPUT_FORMATS'):
+    """
+    Read back a date rendered by format_datetime().
+
+    The very format used for rendering is tried first, since that is what the
+    user sees in the table and copies into the filter box; the input formats
+    declared by the active locale follow.
+    """
+    date_formats = []
+    rendering_format = date_format_to_strptime(
+        formats.get_format('SHORT_DATE_FORMAT', use_l10n=USE_L10N))
+    if rendering_format:
+        date_formats.append(rendering_format)
+    date_formats += formats.get_format('DATE_INPUT_FORMATS', use_l10n=USE_L10N)
+
+    for date_format in date_formats:
         try:
-            parsed_date = datetime.datetime.strptime(formatted_date, date_format)
+            return datetime.datetime.strptime(formatted_date, date_format).date()
         except ValueError:
             continue
-        else:
-            break
-    if not parsed_date:
-        raise ValueError
-    return parsed_date.date()
+    raise ValueError

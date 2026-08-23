@@ -3,6 +3,15 @@
 History
 =======
 
+v4.6.1
+------
+* Fixed the global date range filter raising `AssertionError` (that is: a 500) whenever
+  `latest_by` is not one of the declared columns. Since `latest_by` falls back to the
+  model's `Meta.get_latest_by`, which has no reason to name a visible column, the
+  From/To toolbar was shown and then failed as soon as it was used;
+  `filter_queryset_by_date_range()` now looks the field up on the model when the columns
+  do not know about it
+
 v4.6.0
 ------
 * Fixed date column filtering, broken by Django 5.0 removing the `USE_L10N` setting:

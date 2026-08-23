@@ -914,9 +914,14 @@ class AjaxDatatableView(View):
 
             # ... so lookup the model_field, instead
             try:
-                latest_by_field = self.column_obj(self.latest_by).model_field
+                if self.latest_by in self.column_index:
+                    latest_by_field = self.column_obj(self.latest_by).model_field
+                else:
+                    # 'latest_by' can come from the model's Meta.get_latest_by,
+                    # and then there is no reason for it to be a declared column
+                    latest_by_field = self.model._meta.get_field(self.latest_by)
                 is_datetime = isinstance(latest_by_field, models.DateTimeField)
-            except AttributeError:
+            except (AttributeError, FieldDoesNotExist):
                 is_datetime = False
 
             if date_from:

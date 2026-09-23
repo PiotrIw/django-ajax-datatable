@@ -824,7 +824,8 @@ class AjaxDatatableView(View):
 
     def filter_queryset(self, params, qs):
 
-        qs = self.filter_queryset_by_date_range(params.get('date_from', None), params.get('date_to', None), qs)
+        if self.show_date_filters:
+            qs = self.filter_queryset_by_date_range(params.get('date_from', None), params.get('date_to', None), qs)
 
         if 'search_value' in params:
             qs = self.filter_queryset_all_columns(params['search_value'], qs)
@@ -913,9 +914,14 @@ class AjaxDatatableView(View):
 
             # ... so lookup the model_field, instead
             try:
-                latest_by_field = self.column_obj(self.latest_by).model_field
+                if self.latest_by in self.column_index:
+                    latest_by_field = self.column_obj(self.latest_by).model_field
+                else:
+                    # 'latest_by' can come from the model's Meta.get_latest_by,
+                    # and then there is no reason for it to be a declared column
+                    latest_by_field = self.model._meta.get_field(self.latest_by)
                 is_datetime = isinstance(latest_by_field, models.DateTimeField)
-            except AttributeError:
+            except (AttributeError, FieldDoesNotExist):
                 is_datetime = False
 
             if date_from:
